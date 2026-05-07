@@ -1,0 +1,35 @@
+# Binaries
+/bin/
+/dist/
+/databara
+
+# Test / coverage
+*.test
+*.out
+coverage.txt
+*.prof
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+*.env.age
+*.pem
+*.key
+
+# Local DB
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+
+# Logs
+*.log
+logs/
+
+# IDE / OS
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
