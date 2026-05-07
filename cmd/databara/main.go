@@ -9,15 +9,29 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/joho/godotenv"
+
+	"github.com/Amdhj22/databara/internal/config"
 )
 
 func main() {
+	// .env is for local development only; ignore the error so production
+	// deployments (which inject env vars directly) aren't bothered.
+	_ = godotenv.Load()
+
+	cfg, err := config.Load()
+	if err != nil {
+		// Logger isn't configured yet, so write the bootstrap failure to
+		// stderr in plain text rather than emitting a half-formed JSON line.
+		_, _ = os.Stderr.WriteString("config: " + err.Error() + "\n")
+		os.Exit(1)
+	}
+
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
-		Level: parseLevel(getenv("LOG_LEVEL", "info")),
+		Level: cfg.Server.SlogLevel(),
 	}))
 	slog.SetDefault(logger)
-
-	addr := getenv("HTTP_ADDR", ":8080")
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
@@ -26,7 +40,7 @@ func main() {
 	})
 
 	srv := &http.Server{
-		Addr:              addr,
+		Addr:              cfg.Server.HTTPAddr,
 		Handler:           mux,
 		ReadHeaderTimeout: 5 * time.Second,
 	}
@@ -35,7 +49,7 @@ func main() {
 	defer stop()
 
 	go func() {
-		slog.Info("server starting", "addr", addr)
+		slog.Info("server starting", "addr", cfg.Server.HTTPAddr)
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			slog.Error("listen failed", "err", err)
 			stop()
@@ -52,24 +66,4 @@ func main() {
 		os.Exit(1)
 	}
 	slog.Info("server stopped")
-}
-
-func getenv(k, def string) string {
-	if v := os.Getenv(k); v != "" {
-		return v
-	}
-	return def
-}
-
-func parseLevel(s string) slog.Level {
-	switch s {
-	case "debug":
-		return slog.LevelDebug
-	case "warn":
-		return slog.LevelWarn
-	case "error":
-		return slog.LevelError
-	default:
-		return slog.LevelInfo
-	}
 }
